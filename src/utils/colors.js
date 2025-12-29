@@ -1,0 +1,23 @@
+// src/utils/colors.js
+export const COLORS = {
+  primary: '#DC0714',
+  secondary: '#FFFFFF',
+  accent: '#FFD700',
+  primaryDark: '#B00610',
+  primaryLight: '#FF1F2F',
+  background: '#F5F5F5',
+  surface: '#FFFFFF',
+  card: '#FFFFFF',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#666666',
+  textLight: '#999999',
+  textWhite: '#FFFFFF',
+  border: '#E0E0E0',
+  divider: '#EEEEEE',
+  success: '#4CAF50',
+  error: '#F44336',
+  warning: '#FF9800',
+  info: '#2196F3',
+  shadow: 'rgba(0, 0, 0, 0.1)',
+  shadowDark: 'rgba(0, 0, 0, 0.2)',
+};
