@@ -1,12 +1,12 @@
-// src/screens/Shop/CartScreen.js
+// src/screens/Shop/PaymentScreen.js
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, FONTS } from '../../utils';
 
-export default function CartScreen() {
+export default function PaymentScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Cart - À venir</Text>
+      <Text style={styles.text}>Payment - À venir</Text>
     </View>
   );
 }
