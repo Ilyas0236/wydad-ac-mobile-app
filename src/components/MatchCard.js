@@ -1,5 +1,5 @@
 // src/components/MatchCard.js
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,44 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import PropTypes from 'prop-types';
 import { COLORS, FONTS, SPACING } from '../utils';
 
-export default function MatchCard({ match, onPress }) {
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const options = { weekday: 'short', day: 'numeric', month: 'short' };
-    return date.toLocaleDateString('fr-FR', options);
-  };
+// ============================================
+// MATCH CARD COMPONENT
+// ============================================
+const MatchCard = React.memo(({ match, onPress }) => {
+  // ============================================
+  // DATE FORMATTING
+  // ============================================
+  const formattedDate = useMemo(() => {
+    try {
+      const date = new Date(match.date);
+      const options = { weekday: 'short', day: 'numeric', month: 'short' };
+      return date.toLocaleDateString('fr-FR', options);
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return match.date;
+    }
+  }, [match.date]);
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  };
+  const formattedTime = useMemo(() => {
+    try {
+      const date = new Date(match.date);
+      return date.toLocaleTimeString('fr-FR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return '';
+    }
+  }, [match.date]);
 
-  const getStatusColor = () => {
+  // ============================================
+  // STATUS HELPERS
+  // ============================================
+  const statusColor = useMemo(() => {
     switch (match.status) {
       case 'available':
         return COLORS.success;
@@ -34,9 +57,9 @@ export default function MatchCard({ match, onPress }) {
       default:
         return COLORS.textSecondary;
     }
-  };
+  }, [match.status]);
 
-  const getStatusText = () => {
+  const statusText = useMemo(() => {
     switch (match.status) {
       case 'available':
         return 'Disponible';
@@ -47,87 +70,113 @@ export default function MatchCard({ match, onPress }) {
       default:
         return '';
     }
+  }, [match.status]);
+
+  const isSoldOut = match.status === 'sold-out';
+
+  // ============================================
+  // HANDLERS
+  // ============================================
+  const handlePress = () => {
+    if (!isSoldOut && onPress) {
+      onPress(match);
+    }
   };
 
+  // ============================================
+  // RENDER
+  // ============================================
   return (
     <TouchableOpacity
       style={styles.container}
-      onPress={() => onPress(match)}
-      disabled={match.status === 'sold-out'}
+      onPress={handlePress}
+      disabled={isSoldOut}
       activeOpacity={0.8}
     >
       <LinearGradient
         colors={['rgba(220, 7, 20, 0.2)', 'rgba(0, 0, 0, 0.8)']}
         style={styles.gradient}
       >
-        {/* Header - Competition */}
+        {/* Header - Competition & Status */}
         <View style={styles.header}>
           <View style={styles.competitionBadge}>
             <Ionicons name="trophy" size={14} color={COLORS.accent} />
             <Text style={styles.competitionText}>{match.competition}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
-            <Text style={styles.statusText}>{getStatusText()}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Text style={styles.statusText}>{statusText}</Text>
           </View>
         </View>
 
         {/* Teams */}
         <View style={styles.teamsContainer}>
-          {/* Wydad */}
+          {/* Home Team (Wydad) */}
           <View style={styles.team}>
             <Image
               source={{ uri: match.homeTeamLogo }}
               style={styles.teamLogo}
               resizeMode="contain"
             />
-            <Text style={styles.teamName}>{match.homeTeam}</Text>
+            <Text style={styles.teamName} numberOfLines={2}>
+              {match.homeTeam}
+            </Text>
           </View>
 
-          {/* VS */}
+          {/* VS Badge */}
           <View style={styles.vsContainer}>
             <Text style={styles.vsText}>VS</Text>
           </View>
 
-          {/* Adversaire */}
+          {/* Away Team */}
           <View style={styles.team}>
             <Image
               source={{ uri: match.awayTeamLogo }}
               style={styles.teamLogo}
               resizeMode="contain"
             />
-            <Text style={styles.teamName}>{match.awayTeam}</Text>
+            <Text style={styles.teamName} numberOfLines={2}>
+              {match.awayTeam}
+            </Text>
           </View>
         </View>
 
-        {/* Info Match */}
+        {/* Match Info */}
         <View style={styles.infoContainer}>
-          {/* Date & Heure */}
+          {/* Date & Time */}
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
             <Text style={styles.infoText}>
-              {formatDate(match.date)} • {formatTime(match.date)}
+              {formattedDate} • {formattedTime}
             </Text>
           </View>
 
-          {/* Stade */}
+          {/* Stadium */}
           <View style={styles.infoRow}>
             <Ionicons name="location-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.infoText}>{match.stadium}</Text>
+            <Text style={styles.infoText} numberOfLines={1}>
+              {match.stadium}
+            </Text>
           </View>
         </View>
 
-        {/* Footer - Prix */}
+        {/* Footer - Price & Action */}
         <View style={styles.footer}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceLabel}>À partir de</Text>
             <Text style={styles.priceValue}>{match.price} MAD</Text>
           </View>
 
-          <View style={[styles.actionButton, match.status === 'sold-out' && styles.actionButtonDisabled]}>
-            <Text style={[styles.actionButtonText, match.status === 'sold-out' && styles.actionButtonTextDisabled]}>
-              {match.status === 'sold-out' ? 'Complet' : 'Réserver'}
+          <View style={[
+            styles.actionButton, 
+            isSoldOut && styles.actionButtonDisabled
+          ]}>
+            <Text style={[
+              styles.actionButtonText,
+              isSoldOut && styles.actionButtonTextDisabled
+            ]}>
+              {isSoldOut ? 'Complet' : 'Réserver'}
             </Text>
-            {match.status !== 'sold-out' && (
+            {!isSoldOut && (
               <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
             )}
           </View>
@@ -135,8 +184,36 @@ export default function MatchCard({ match, onPress }) {
       </LinearGradient>
     </TouchableOpacity>
   );
-}
+});
 
+// ============================================
+// PROP TYPES
+// ============================================
+MatchCard.propTypes = {
+  match: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    homeTeam: PropTypes.string.isRequired,
+    awayTeam: PropTypes.string.isRequired,
+    homeTeamLogo: PropTypes.string.isRequired,
+    awayTeamLogo: PropTypes.string.isRequired,
+    date: PropTypes.string.isRequired,
+    stadium: PropTypes.string.isRequired,
+    competition: PropTypes.string.isRequired,
+    price: PropTypes.number.isRequired,
+    status: PropTypes.oneOf(['available', 'selling-fast', 'sold-out']).isRequired,
+  }).isRequired,
+  onPress: PropTypes.func,
+};
+
+MatchCard.defaultProps = {
+  onPress: null,
+};
+
+MatchCard.displayName = 'MatchCard';
+
+// ============================================
+// STYLES
+// ============================================
 const styles = StyleSheet.create({
   container: {
     marginBottom: SPACING.lg,
@@ -228,6 +305,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: FONTS.body2,
     color: COLORS.white,
+    flex: 1,
   },
   footer: {
     flexDirection: 'row',
@@ -271,3 +349,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
+export default MatchCard;
