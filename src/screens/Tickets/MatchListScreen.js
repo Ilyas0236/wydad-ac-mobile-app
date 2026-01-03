@@ -1,4 +1,4 @@
-// src/screens/Ticketing/MatchListScreen.js
+// src/screens/Tickets/MatchListScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,17 +8,19 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING } from '../../utils';
 import MatchCard from '../../components/MatchCard';
-import MatchService from '../../services/matchService';
+import { getMatches } from '../../services/ticketService'; // ← FIREBASE
 
 export default function MatchListScreen({ navigation }) {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -29,34 +31,43 @@ export default function MatchListScreen({ navigation }) {
     try {
       setLoading(true);
       setError(null);
-      const data = await MatchService.getAllMatches();
+      
+      console.log('🔄 Fetching matches from Firebase...');
+      const data = await getMatches(); // ← FIREBASE SERVICE
+      
+      console.log('✅ Matches loaded:', data.length);
       setMatches(data);
     } catch (err) {
-      setError(err.message);
-      console.error('Error loading matches:', err);
+      setError('Impossible de charger les matchs');
+      console.error('❌ Error loading matches:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchMatches();
+    setRefreshing(false);
+  };
+
   const filters = [
     { id: 'all', name: 'Tous', icon: 'list' },
-    { id: 'botola', name: 'Botola Pro', icon: 'football' },
-    { id: 'caf', name: 'CAF CL', icon: 'trophy' },
+    { id: 'Botola Pro', name: 'Botola Pro', icon: 'football' },
+    { id: 'CAF Champions League', name: 'CAF CL', icon: 'trophy' },
     { id: 'available', name: 'Disponible', icon: 'checkmark-circle' },
   ];
 
   const filterMatches = () => {
-    switch (selectedFilter) {
-      case 'botola':
-        return matches.filter(m => m.competition === 'Botola Pro');
-      case 'caf':
-        return matches.filter(m => m.competition === 'CAF Champions League');
-      case 'available':
-        return matches.filter(m => m.status === 'available');
-      default:
-        return matches;
+    if (selectedFilter === 'all') {
+      return matches;
     }
+    
+    if (selectedFilter === 'available') {
+      return matches.filter(m => m.status === 'available');
+    }
+    
+    return matches.filter(m => m.competition === selectedFilter);
   };
 
   const handleMatchPress = (match) => {
@@ -89,7 +100,7 @@ export default function MatchListScreen({ navigation }) {
     </TouchableOpacity>
   );
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -98,7 +109,7 @@ export default function MatchListScreen({ navigation }) {
     );
   }
 
-  if (error) {
+  if (error && matches.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <LinearGradient colors={['#000', COLORS.primaryDark]} style={styles.container}>
@@ -114,6 +125,8 @@ export default function MatchListScreen({ navigation }) {
     );
   }
 
+  const filteredMatches = filterMatches();
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
@@ -125,7 +138,7 @@ export default function MatchListScreen({ navigation }) {
           <View>
             <Text style={styles.headerTitle}>Billetterie</Text>
             <Text style={styles.headerSubtitle}>
-              {filterMatches().length} matchs disponibles
+              {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''} disponible{filteredMatches.length > 1 ? 's' : ''}
             </Text>
           </View>
           <TouchableOpacity
@@ -148,17 +161,31 @@ export default function MatchListScreen({ navigation }) {
 
         {/* Matches List */}
         <FlatList
-          data={filterMatches()}
+          data={filteredMatches}
           renderItem={({ item }) => (
             <MatchCard match={item} onPress={handleMatchPress} />
           )}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="calendar-outline" size={60} color={COLORS.textSecondary} />
               <Text style={styles.emptyText}>Aucun match disponible</Text>
+              <TouchableOpacity 
+                style={styles.retryButton} 
+                onPress={fetchMatches}
+              >
+                <Text style={styles.retryButtonText}>Actualiser</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -203,6 +230,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderRadius: 12,
+    marginTop: SPACING.md,
   },
   retryButtonText: {
     color: COLORS.white,
@@ -269,6 +297,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xl * 2,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -279,5 +308,6 @@ const styles = StyleSheet.create({
     fontSize: FONTS.body1,
     color: COLORS.textSecondary,
     marginTop: SPACING.md,
+    marginBottom: SPACING.md,
   },
 });
