@@ -1,20 +1,21 @@
 // src/screens/Tickets/MatchListScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING } from '../../utils';
 import MatchCard from '../../components/MatchCard';
-import { getMatches } from '../../services/ticketService'; // ← FIREBASE
+import { getMatches } from '../../services/ticketService';
 
 export default function MatchListScreen({ navigation }) {
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -23,17 +24,21 @@ export default function MatchListScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+
   useEffect(() => {
     fetchMatches();
   }, []);
 
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
       console.log('🔄 Fetching matches from Firebase...');
-      const data = await getMatches(); // ← FIREBASE SERVICE
+      const data = await getMatches();
       
       console.log('✅ Matches loaded:', data.length);
       setMatches(data);
@@ -43,22 +48,26 @@ export default function MatchListScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchMatches();
     setRefreshing(false);
-  };
+  }, [fetchMatches]);
 
-  const filters = [
+  // ============================================
+  // FILTERS
+  // ============================================
+
+  const filters = useMemo(() => [
     { id: 'all', name: 'Tous', icon: 'list' },
     { id: 'Botola Pro', name: 'Botola Pro', icon: 'football' },
     { id: 'CAF Champions League', name: 'CAF CL', icon: 'trophy' },
     { id: 'available', name: 'Disponible', icon: 'checkmark-circle' },
-  ];
+  ], []);
 
-  const filterMatches = () => {
+  const filteredMatches = useMemo(() => {
     if (selectedFilter === 'all') {
       return matches;
     }
@@ -68,21 +77,38 @@ export default function MatchListScreen({ navigation }) {
     }
     
     return matches.filter(m => m.competition === selectedFilter);
-  };
+  }, [matches, selectedFilter]);
 
-  const handleMatchPress = (match) => {
+  // ============================================
+  // HANDLERS
+  // ============================================
+
+  const handleMatchPress = useCallback((match) => {
     if (match.status !== 'sold-out') {
       navigation.navigate('TicketBooking', { match });
     }
-  };
+  }, [navigation]);
 
-  const renderFilterButton = ({ item }) => (
+  const handleMyTicketsPress = useCallback(() => {
+    navigation.navigate('MyTickets');
+  }, [navigation]);
+
+  const handleFilterPress = useCallback((filterId) => {
+    setSelectedFilter(filterId);
+  }, []);
+
+  // ============================================
+  // RENDER FUNCTIONS
+  // ============================================
+
+  const renderFilterButton = useCallback(({ item }) => (
     <TouchableOpacity
       style={[
         styles.filterButton,
         selectedFilter === item.id && styles.filterButtonActive,
       ]}
-      onPress={() => setSelectedFilter(item.id)}
+      onPress={() => handleFilterPress(item.id)}
+      activeOpacity={0.7}
     >
       <Ionicons
         name={item.icon}
@@ -98,25 +124,59 @@ export default function MatchListScreen({ navigation }) {
         {item.name}
       </Text>
     </TouchableOpacity>
-  );
+  ), [selectedFilter, handleFilterPress]);
+
+  const renderMatchCard = useCallback(({ item }) => (
+    <MatchCard match={item} onPress={handleMatchPress} />
+  ), [handleMatchPress]);
+
+  const renderEmptyComponent = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="calendar-outline" size={60} color={COLORS.textSecondary} />
+      <Text style={styles.emptyText}>Aucun match disponible</Text>
+      <TouchableOpacity 
+        style={styles.retryButton} 
+        onPress={fetchMatches}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.retryButtonText}>Actualiser</Text>
+      </TouchableOpacity>
+    </View>
+  ), [fetchMatches]);
+
+  // ============================================
+  // LOADING STATE
+  // ============================================
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Chargement des matchs...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Chargement des matchs...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
+  // ============================================
+  // ERROR STATE
+  // ============================================
+
   if (error && matches.length === 0) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar barStyle="light-content" />
         <LinearGradient colors={['#000', COLORS.primaryDark]} style={styles.container}>
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={64} color={COLORS.error} />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={fetchMatches}>
+            <TouchableOpacity 
+              style={styles.retryButton} 
+              onPress={fetchMatches}
+              activeOpacity={0.8}
+            >
               <Text style={styles.retryButtonText}>Réessayer</Text>
             </TouchableOpacity>
           </View>
@@ -125,17 +185,20 @@ export default function MatchListScreen({ navigation }) {
     );
   }
 
-  const filteredMatches = filterMatches();
+  // ============================================
+  // MAIN RENDER
+  // ============================================
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" />
       <LinearGradient
         colors={['#000', COLORS.primaryDark]}
         style={styles.container}
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>Billetterie</Text>
             <Text style={styles.headerSubtitle}>
               {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''} disponible{filteredMatches.length > 1 ? 's' : ''}
@@ -143,7 +206,8 @@ export default function MatchListScreen({ navigation }) {
           </View>
           <TouchableOpacity
             style={styles.ticketsButton}
-            onPress={() => navigation.navigate('MyTickets')}
+            onPress={handleMyTicketsPress}
+            activeOpacity={0.7}
           >
             <Ionicons name="ticket" size={24} color={COLORS.primary} />
           </TouchableOpacity>
@@ -162,9 +226,7 @@ export default function MatchListScreen({ navigation }) {
         {/* Matches List */}
         <FlatList
           data={filteredMatches}
-          renderItem={({ item }) => (
-            <MatchCard match={item} onPress={handleMatchPress} />
-          )}
+          renderItem={renderMatchCard}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -176,18 +238,11 @@ export default function MatchListScreen({ navigation }) {
               colors={[COLORS.primary]}
             />
           }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="calendar-outline" size={60} color={COLORS.textSecondary} />
-              <Text style={styles.emptyText}>Aucun match disponible</Text>
-              <TouchableOpacity 
-                style={styles.retryButton} 
-                onPress={fetchMatches}
-              >
-                <Text style={styles.retryButtonText}>Actualiser</Text>
-              </TouchableOpacity>
-            </View>
-          }
+          ListEmptyComponent={renderEmptyComponent}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews={true}
         />
       </LinearGradient>
     </SafeAreaView>
@@ -244,6 +299,9 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerLeft: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: FONTS.h2,
