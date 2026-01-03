@@ -1,36 +1,112 @@
 // src/screens/HomeScreen.js
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Image,
   ScrollView,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING } from '../utils';
 import { useAuth } from '../context/AuthContext';
+import { getUpcomingMatches } from '../services/ticketService';
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
+  const [nextMatch, setNextMatch] = useState(null);
+
+  // ============================================
+  // LOAD NEXT MATCH
+  // ============================================
+  useEffect(() => {
+    loadNextMatch();
+  }, []);
+
+  const loadNextMatch = async () => {
+    try {
+      const matches = await getUpcomingMatches();
+      if (matches && matches.length > 0) {
+        setNextMatch(matches[0]); // First upcoming match
+      }
+    } catch (error) {
+      console.error('❌ Error loading next match:', error);
+    }
+  };
+
+  // ============================================
+  // NAVIGATION HANDLERS
+  // ============================================
+  const handleShopPress = useCallback(() => {
+    navigation.navigate('ShopTab');
+  }, [navigation]);
+
+  const handleTicketsPress = useCallback(() => {
+    navigation.navigate('TicketsTab');
+  }, [navigation]);
+
+  const handleStoresMapPress = useCallback(() => {
+    navigation.navigate('StoresMap');
+  }, [navigation]);
+
+  const handleProfilePress = useCallback(() => {
+    navigation.navigate('ProfileTab');
+  }, [navigation]);
+
+  const handleNextMatchPress = useCallback(() => {
+    if (nextMatch) {
+      navigation.navigate('TicketsTab', { 
+        screen: 'TicketBooking',
+        params: { match: nextMatch }
+      });
+    } else {
+      navigation.navigate('TicketsTab');
+    }
+  }, [navigation, nextMatch]);
+
+  // ============================================
+  // FORMAT MATCH DATE
+  // ============================================
+  const formatMatchDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" />
       <LinearGradient
         colors={[COLORS.primary, COLORS.primaryDark, '#000']}
         style={styles.container}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View>
               <Text style={styles.greeting}>Bienvenue,</Text>
-              <Text style={styles.userName}>{user?.displayName || 'Fan Wydad'} 🏆</Text>
+              <Text style={styles.userName}>
+                {user?.displayName || 'Fan Wydad'} 🏆
+              </Text>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')}>
+            <TouchableOpacity 
+              onPress={handleProfilePress}
+              activeOpacity={0.7}
+            >
               <Ionicons name="person-circle-outline" size={40} color={COLORS.white} />
             </TouchableOpacity>
           </View>
@@ -38,7 +114,9 @@ export default function HomeScreen({ navigation }) {
           {/* Logo Section */}
           <View style={styles.logoSection}>
             <Image
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/25/Wydad_AC_logo.svg/1200px-Wydad_AC_logo.svg.png' }}
+              source={{ 
+                uri: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/25/Wydad_AC_logo.svg/1200px-Wydad_AC_logo.svg.png' 
+              }}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -46,11 +124,12 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.subtitle}>Bienvenue chez les Champions</Text>
           </View>
 
-          {/* Quick Actions - 3 CARDS */}
+          {/* Quick Actions */}
           <View style={styles.actionsContainer}>
             <TouchableOpacity
               style={[styles.actionCard, { backgroundColor: COLORS.primary }]}
-              onPress={() => navigation.navigate('ShopTab')}
+              onPress={handleShopPress}
+              activeOpacity={0.8}
             >
               <View style={styles.iconContainer}>
                 <Text style={styles.icon}>🛍️</Text>
@@ -61,7 +140,8 @@ export default function HomeScreen({ navigation }) {
 
             <TouchableOpacity
               style={[styles.actionCard, { backgroundColor: '#FFD700' }]}
-              onPress={() => navigation.navigate('TicketsTab')}
+              onPress={handleTicketsPress}
+              activeOpacity={0.8}
             >
               <View style={styles.iconContainer}>
                 <Text style={styles.icon}>🎫</Text>
@@ -71,10 +151,11 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* NOUVEAU : Boutiques Maps */}
+          {/* Stores Map Card */}
           <TouchableOpacity
             style={styles.mapCard}
-            onPress={() => navigation.navigate('StoresMap')}
+            onPress={handleStoresMapPress}
+            activeOpacity={0.8}
           >
             <View style={styles.mapCardLeft}>
               <Ionicons name="location" size={40} color={COLORS.primary} />
@@ -102,14 +183,25 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Info Card */}
-          <View style={styles.infoCard}>
+          {/* Next Match Card */}
+          <TouchableOpacity
+            style={styles.infoCard}
+            onPress={handleNextMatchPress}
+            activeOpacity={0.8}
+          >
             <Ionicons name="information-circle" size={24} color={COLORS.accent} />
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoTitle}>Prochain Match</Text>
-              <Text style={styles.infoText}>Wydad vs Raja - 15 Jan 2026</Text>
+              {nextMatch ? (
+                <Text style={styles.infoText}>
+                  {nextMatch.homeTeam} vs {nextMatch.awayTeam} - {formatMatchDate(nextMatch.date)}
+                </Text>
+              ) : (
+                <Text style={styles.infoText}>Aucun match programmé</Text>
+              )}
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.accent} />
+          </TouchableOpacity>
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -123,6 +215,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.xl,
   },
   header: {
     flexDirection: 'row',
@@ -154,11 +249,13 @@ const styles = StyleSheet.create({
     fontWeight: FONTS.bold,
     color: COLORS.white,
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: FONTS.body1,
     color: COLORS.white,
     opacity: 0.8,
+    textAlign: 'center',
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -184,13 +281,14 @@ const styles = StyleSheet.create({
     fontWeight: FONTS.bold,
     color: COLORS.white,
     marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
   actionSubtitle: {
     fontSize: FONTS.body2,
     color: COLORS.white,
     opacity: 0.9,
+    textAlign: 'center',
   },
-  // NOUVEAU : Map Card
   mapCard: {
     flexDirection: 'row',
     alignItems: 'center',
