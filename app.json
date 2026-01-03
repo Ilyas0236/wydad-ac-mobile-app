@@ -1,29 +1,63 @@
 {
   "expo": {
-    "name": "wydad-ac-mobile-app",
-    "slug": "wydad-ac-mobile-app",
+    "name": "Wydad Fan",
+    "slug": "wydad-fan-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "dark",
+    "scheme": "wydadfan",
+    "description": "Application officielle des fans du Wydad Athletic Club. Boutique, billetterie et localisation des magasins.",
+    "primaryColor": "#DC0714",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#DC0714"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wydad.fanapp",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "L'application a besoin de votre localisation pour afficher les boutiques Wydad à proximité."
+      }
     },
     "android": {
+      "package": "com.wydad.fanapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#DC0714"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBb2m-4LXwn900C1cI-wV7fGxI-kZYGmuE"
+        }
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "L'application a besoin de votre localisation pour afficher les boutiques Wydad à proximité."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
     }
   }
 }
