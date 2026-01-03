@@ -18,12 +18,46 @@ import PaymentScreen from '../screens/Shop/PaymentScreen';
 import MatchListScreen from '../screens/Tickets/MatchListScreen';
 import TicketBookingScreen from '../screens/Tickets/TicketBookingScreen';
 import MyTicketsScreen from '../screens/Tickets/MyTicketsScreen';
+import StoresMapScreen from '../screens/Stores/StoresMapScreen'; // ← NOUVEAU
 
 // Import contexts
 import { useAuth } from '../context/AuthContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Stack Navigator pour Home avec Maps
+function HomeStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="StoresMap" component={StoresMapScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// Stack Navigator pour Boutique
+function ShopStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ProductList" component={ProductListScreen} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+      <Stack.Screen name="Cart" component={CartScreen} />
+      <Stack.Screen name="Payment" component={PaymentScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// Stack Navigator pour Billetterie
+function TicketsStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MatchList" component={MatchListScreen} />
+      <Stack.Screen name="TicketBooking" component={TicketBookingScreen} />
+      <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
+    </Stack.Navigator>
+  );
+}
 
 // Tab Navigator (après connexion)
 function MainTabs() {
@@ -60,7 +94,7 @@ function MainTabs() {
     >
       <Tab.Screen 
         name="HomeTab" 
-        component={HomeScreen}
+        component={HomeStack}
         options={{ tabBarLabel: 'Accueil' }}
       />
       <Tab.Screen 
@@ -79,29 +113,6 @@ function MainTabs() {
         options={{ tabBarLabel: 'Profil' }}
       />
     </Tab.Navigator>
-  );
-}
-
-// Stack Navigator pour Boutique
-function ShopStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="ProductList" component={ProductListScreen} />
-      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
-      <Stack.Screen name="Cart" component={CartScreen} />
-      <Stack.Screen name="Payment" component={PaymentScreen} />
-    </Stack.Navigator>
-  );
-}
-
-// Stack Navigator pour Billetterie
-function TicketsStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MatchList" component={MatchListScreen} />
-      <Stack.Screen name="TicketBooking" component={TicketBookingScreen} />
-      <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
-    </Stack.Navigator>
   );
 }
 

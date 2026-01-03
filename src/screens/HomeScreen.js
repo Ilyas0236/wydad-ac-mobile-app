@@ -1,7 +1,5 @@
 // src/screens/HomeScreen.js
 import React from 'react';
-
-
 import {
   View,
   Text,
@@ -48,7 +46,7 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.subtitle}>Bienvenue chez les Champions</Text>
           </View>
 
-          {/* Quick Actions */}
+          {/* Quick Actions - 3 CARDS */}
           <View style={styles.actionsContainer}>
             <TouchableOpacity
               style={[styles.actionCard, { backgroundColor: COLORS.primary }]}
@@ -72,6 +70,21 @@ export default function HomeScreen({ navigation }) {
               <Text style={[styles.actionSubtitle, { color: '#333' }]}>Réserver matchs</Text>
             </TouchableOpacity>
           </View>
+
+          {/* NOUVEAU : Boutiques Maps */}
+          <TouchableOpacity
+            style={styles.mapCard}
+            onPress={() => navigation.navigate('StoresMap')}
+          >
+            <View style={styles.mapCardLeft}>
+              <Ionicons name="location" size={40} color={COLORS.primary} />
+              <View style={styles.mapCardText}>
+                <Text style={styles.mapCardTitle}>Boutiques Wydad</Text>
+                <Text style={styles.mapCardSubtitle}>4 boutiques à Casablanca</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={COLORS.white} />
+          </TouchableOpacity>
 
           {/* Stats Section */}
           <View style={styles.statsContainer}>
@@ -176,6 +189,37 @@ const styles = StyleSheet.create({
     fontSize: FONTS.body2,
     color: COLORS.white,
     opacity: 0.9,
+  },
+  // NOUVEAU : Map Card
+  mapCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  mapCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  mapCardText: {
+    marginLeft: SPACING.md,
+  },
+  mapCardTitle: {
+    fontSize: FONTS.h4,
+    fontWeight: FONTS.bold,
+    color: COLORS.white,
+    marginBottom: 4,
+  },
+  mapCardSubtitle: {
+    fontSize: FONTS.body2,
+    color: COLORS.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
