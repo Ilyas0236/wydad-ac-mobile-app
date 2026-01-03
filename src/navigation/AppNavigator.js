@@ -1,5 +1,6 @@
 // src/navigation/AppNavigator.js
-import React from 'react';
+import React, { useMemo } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -18,28 +19,82 @@ import PaymentScreen from '../screens/Shop/PaymentScreen';
 import MatchListScreen from '../screens/Tickets/MatchListScreen';
 import TicketBookingScreen from '../screens/Tickets/TicketBookingScreen';
 import MyTicketsScreen from '../screens/Tickets/MyTicketsScreen';
-import StoresMapScreen from '../screens/Stores/StoresMapScreen'; // ← NOUVEAU
+import StoresMapScreen from '../screens/Stores/StoresMapScreen';
 
 // Import contexts
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Stack Navigator pour Home avec Maps
+// ============================================
+// LINKING CONFIGURATION
+// ============================================
+const linking = {
+  prefixes: ['wydadfan://', 'https://wydadfan.app'],
+  config: {
+    screens: {
+      Login: 'login',
+      Register: 'register',
+      Main: {
+        screens: {
+          HomeTab: {
+            screens: {
+              Home: 'home',
+              StoresMap: 'stores',
+            },
+          },
+          ShopTab: {
+            screens: {
+              ProductList: 'shop',
+              ProductDetail: 'shop/product/:id',
+              Cart: 'cart',
+              Payment: 'payment',
+            },
+          },
+          TicketsTab: {
+            screens: {
+              MatchList: 'tickets',
+              TicketBooking: 'tickets/booking/:matchId',
+              MyTickets: 'my-tickets',
+            },
+          },
+          ProfileTab: 'profile',
+        },
+      },
+    },
+  },
+};
+
+// ============================================
+// HOME STACK
+// ============================================
 function HomeStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="StoresMap" component={StoresMapScreen} />
     </Stack.Navigator>
   );
 }
 
-// Stack Navigator pour Boutique
+// ============================================
+// SHOP STACK
+// ============================================
 function ShopStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
       <Stack.Screen name="ProductList" component={ProductListScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="Cart" component={CartScreen} />
@@ -48,10 +103,17 @@ function ShopStack() {
   );
 }
 
-// Stack Navigator pour Billetterie
+// ============================================
+// TICKETS STACK
+// ============================================
 function TicketsStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
       <Stack.Screen name="MatchList" component={MatchListScreen} />
       <Stack.Screen name="TicketBooking" component={TicketBookingScreen} />
       <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
@@ -59,8 +121,17 @@ function TicketsStack() {
   );
 }
 
-// Tab Navigator (après connexion)
+// ============================================
+// MAIN TABS
+// ============================================
 function MainTabs() {
+  const { cart } = useCart();
+
+  // Calculate cart badge count
+  const cartCount = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -100,7 +171,16 @@ function MainTabs() {
       <Tab.Screen 
         name="ShopTab" 
         component={ShopStack}
-        options={{ tabBarLabel: 'Boutique' }}
+        options={{ 
+          tabBarLabel: 'Boutique',
+          tabBarBadge: cartCount > 0 ? cartCount : null,
+          tabBarBadgeStyle: {
+            backgroundColor: COLORS.accent,
+            color: '#000',
+            fontSize: 10,
+            fontWeight: 'bold',
+          }
+        }}
       />
       <Tab.Screen 
         name="TicketsTab" 
@@ -116,28 +196,67 @@ function MainTabs() {
   );
 }
 
-// Navigation principale
+// ============================================
+// LOADING SCREEN
+// ============================================
+function LoadingScreen() {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={COLORS.primary} />
+    </View>
+  );
+}
+
+// ============================================
+// MAIN APP NAVIGATOR
+// ============================================
 export default function AppNavigator() {
   const { user, loading } = useAuth();
 
+  // Show loading screen while checking auth state
   if (loading) {
-    return null; // Ou un SplashScreen
+    return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <NavigationContainer linking={linking}>
+      <Stack.Navigator 
+        screenOptions={{ 
+          headerShown: false,
+          animation: 'fade',
+        }}
+      >
         {!user ? (
-          // Écrans avant connexion
+          // Auth screens (not logged in)
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen}
+              options={{ animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen 
+              name="Register" 
+              component={RegisterScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
           </>
         ) : (
-          // Écrans après connexion
+          // Main app screens (logged in)
           <Stack.Screen name="Main" component={MainTabs} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
+
+// ============================================
+// STYLES
+// ============================================
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+});
