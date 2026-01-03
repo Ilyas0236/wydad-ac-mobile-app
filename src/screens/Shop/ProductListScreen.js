@@ -14,70 +14,33 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING } from '../../utils';
 import ProductCard from '../../components/ProductCard';
+import ProductService from '../../services/productService'; // ← NOUVEAU
+
 
 export default function ProductListScreen({ navigation }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState(null); // ← NOUVEAU
 
-  // Données mock (temporaires - à remplacer par Firebase après le déjeuner)
+  // ✅ CHARGER PRODUITS DEPUIS FIREBASE
   useEffect(() => {
-    setTimeout(() => {
-      setProducts([
-        {
-          id: '1',
-          name: 'Maillot Domicile 2025',
-          category: 'Maillots',
-          price: 450,
-          oldPrice: 600,
-          discount: 25,
-          image: 'https://www.sportsdirect.com/images/products/51710703_l.jpg',
-          stock: 50,
-        },
-        {
-          id: '2',
-          name: 'Écharpe Officielle',
-          category: 'Accessoires',
-          price: 120,
-          oldPrice: 0,
-          discount: 0,
-          image: 'https://m.media-amazon.com/images/I/61wHGxMxLwL._AC_UX679_.jpg',
-          stock: 100,
-        },
-        {
-          id: '3',
-          name: 'Casquette Wydad',
-          category: 'Accessoires',
-          price: 80,
-          oldPrice: 100,
-          discount: 20,
-          image: 'https://m.media-amazon.com/images/I/71zXqKDEV0L._AC_UX679_.jpg',
-          stock: 30,
-        },
-        {
-          id: '4',
-          name: 'Survêtement Entraînement',
-          category: 'Vêtements',
-          price: 550,
-          oldPrice: 700,
-          discount: 21,
-          image: 'https://contents.mediadecathlon.com/p2166906/k$2de4b0dd9eb5ac76566e9f0a80c8bb8e/sq/survetement-de-football-adulte-trk500-noir.jpg',
-          stock: 8,
-        },
-        {
-          id: '5',
-          name: 'Ballon Officiel',
-          category: 'Équipement',
-          price: 200,
-          oldPrice: 0,
-          discount: 0,
-          image: 'https://m.media-amazon.com/images/I/71kxLPqNOlL._AC_UX679_.jpg',
-          stock: 25,
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ProductService.getAllProducts();
+      setProducts(data);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error loading products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -90,12 +53,33 @@ export default function ProductListScreen({ navigation }) {
     />
   );
 
+  // ✅ LOADING STATE
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Chargement des produits...</Text>
       </View>
+    );
+  }
+
+  // ✅ ERROR STATE
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <LinearGradient
+          colors={['#000', COLORS.primaryDark, COLORS.primary]}
+          style={styles.container}
+        >
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={64} color={COLORS.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchProducts}>
+              <Text style={styles.retryButtonText}>Réessayer</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
@@ -113,7 +97,6 @@ export default function ProductListScreen({ navigation }) {
             onPress={() => navigation.navigate('Cart')}
           >
             <Ionicons name="cart-outline" size={28} color={COLORS.white} />
-            {/* Badge nombre articles - à implémenter avec CartContext */}
           </TouchableOpacity>
         </View>
 
@@ -167,6 +150,32 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     fontSize: FONTS.body1,
   },
+  // ✅ NOUVEAUX STYLES ERROR
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: FONTS.body1,
+    textAlign: 'center',
+    marginVertical: SPACING.lg,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: 12,
+    marginTop: SPACING.md,
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontSize: FONTS.button,
+    fontWeight: FONTS.bold,
+  },
+  // STYLES EXISTANTS
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

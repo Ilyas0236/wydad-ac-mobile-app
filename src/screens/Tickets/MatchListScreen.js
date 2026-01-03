@@ -1,5 +1,5 @@
 // src/screens/Ticketing/MatchListScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,114 +7,37 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING } from '../../utils';
 import MatchCard from '../../components/MatchCard';
+import MatchService from '../../services/matchService';
 
 export default function MatchListScreen({ navigation }) {
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // DONNÉES DE TEST - 8 matchs Wydad
-  const matches = [
-    {
-      id: '1',
-      homeTeam: 'Wydad AC',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      awayTeam: 'Raja Casablanca',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/5/54/Raja_Casablanca_logo.png',
-      competition: 'Botola Pro',
-      date: '2026-01-15T20:00:00',
-      stadium: 'Stade Mohammed V',
-      price: 150,
-      status: 'available',
-    },
-    {
-      id: '2',
-      homeTeam: 'Wydad AC',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      awayTeam: 'Al Ahly',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/8/8d/Al_Ahly_SC_logo.png',
-      competition: 'CAF Champions League',
-      date: '2026-01-22T21:00:00',
-      stadium: 'Stade Mohammed V',
-      price: 200,
-      status: 'selling-fast',
-    },
-    {
-      id: '3',
-      homeTeam: 'FUS Rabat',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/3/3b/FUS_Rabat_logo.png',
-      awayTeam: 'Wydad AC',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      competition: 'Botola Pro',
-      date: '2026-01-29T19:00:00',
-      stadium: 'Stade Moulay Abdallah',
-      price: 120,
-      status: 'available',
-    },
-    {
-      id: '4',
-      homeTeam: 'Wydad AC',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      awayTeam: 'Mamelodi Sundowns',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/da/Mamelodi_Sundowns_FC_logo.png',
-      competition: 'CAF Champions League',
-      date: '2026-02-05T21:00:00',
-      stadium: 'Stade Mohammed V',
-      price: 200,
-      status: 'available',
-    },
-    {
-      id: '5',
-      homeTeam: 'Wydad AC',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      awayTeam: 'FAR Rabat',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/c/c3/AS_FAR_logo.png',
-      competition: 'Botola Pro',
-      date: '2026-02-12T20:00:00',
-      stadium: 'Stade Mohammed V',
-      price: 130,
-      status: 'available',
-    },
-    {
-      id: '6',
-      homeTeam: 'Wydad AC',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      awayTeam: 'Espérance Tunis',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/4/44/Esperance_Sportive_de_Tunis_logo.png',
-      competition: 'CAF Champions League',
-      date: '2026-02-19T21:00:00',
-      stadium: 'Stade Mohammed V',
-      price: 220,
-      status: 'selling-fast',
-    },
-    {
-      id: '7',
-      homeTeam: 'Olympique Safi',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/7/75/Olympic_Safi_logo.png',
-      awayTeam: 'Wydad AC',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      competition: 'Botola Pro',
-      date: '2026-02-26T19:30:00',
-      stadium: 'Stade El Massira',
-      price: 100,
-      status: 'available',
-    },
-    {
-      id: '8',
-      homeTeam: 'Wydad AC',
-      homeTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/d/d3/Wydad_AC_logo.png',
-      awayTeam: 'Simba SC',
-      awayTeamLogo: 'https://upload.wikimedia.org/wikipedia/en/c/ce/Simba_SC_logo.png',
-      competition: 'CAF Champions League',
-      date: '2026-03-05T21:00:00',
-      stadium: 'Stade Mohammed V',
-      price: 180,
-      status: 'sold-out',
-    },
-  ];
+  useEffect(() => {
+    fetchMatches();
+  }, []);
+
+  const fetchMatches = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await MatchService.getAllMatches();
+      setMatches(data);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error loading matches:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filters = [
     { id: 'all', name: 'Tous', icon: 'list' },
@@ -165,6 +88,31 @@ export default function MatchListScreen({ navigation }) {
       </Text>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Chargement des matchs...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <LinearGradient colors={['#000', COLORS.primaryDark]} style={styles.container}>
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={64} color={COLORS.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchMatches}>
+              <Text style={styles.retryButtonText}>Réessayer</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -226,6 +174,40 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  loadingText: {
+    color: COLORS.white,
+    marginTop: SPACING.md,
+    fontSize: FONTS.body1,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: FONTS.body1,
+    textAlign: 'center',
+    marginVertical: SPACING.lg,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontSize: FONTS.button,
+    fontWeight: FONTS.bold,
   },
   header: {
     flexDirection: 'row',
