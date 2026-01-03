@@ -9,24 +9,39 @@ import {
   where, 
   orderBy,
   updateDoc,
-  Timestamp 
+  deleteDoc,
+  Timestamp,
+  serverTimestamp 
 } from 'firebase/firestore';
-import { db } from './firebase';
-
-// Collection references
-const matchesCollection = collection(db, 'matches');
-const ticketsCollection = collection(db, 'tickets');
+import { db, COLLECTIONS, getCurrentUser, getUserId } from './firebase';
 
 // ============================================
-// MATCHES
+// COLLECTION REFERENCES
+// ============================================
+const matchesRef = collection(db, COLLECTIONS.MATCHES);
+const ticketsRef = collection(db, COLLECTIONS.TICKETS);
+
+// ============================================
+// ERROR HANDLING
+// ============================================
+const handleError = (error, context) => {
+  console.error(`❌ [TicketService] ${context}:`, error);
+  throw new Error(`${context}: ${error.message}`);
+};
+
+// ============================================
+// MATCHES OPERATIONS
 // ============================================
 
 /**
- * Get all matches
+ * Get all matches ordered by date
+ * @returns {Promise<Array>}
  */
 export const getMatches = async () => {
   try {
-    const q = query(matchesCollection, orderBy('date', 'asc'));
+    console.log('🔄 Fetching matches from Firebase...');
+    
+    const q = query(matchesRef, orderBy('date', 'asc'));
     const snapshot = await getDocs(q);
     
     const matches = snapshot.docs.map(doc => {
@@ -34,83 +49,173 @@ export const getMatches = async () => {
       return {
         id: doc.id,
         ...data,
-        // Convert Firestore Timestamp to Date string
         date: data.date?.toDate ? data.date.toDate().toISOString() : data.date
       };
     });
     
-    console.log('✅ Matches récupérés:', matches.length);
+    console.log(`✅ Fetched ${matches.length} matches`);
     return matches;
   } catch (error) {
-    console.error('❌ Error fetching matches:', error);
-    throw error;
+    handleError(error, 'Failed to fetch matches');
   }
 };
 
 /**
  * Get match by ID
+ * @param {string} matchId 
+ * @returns {Promise<Object|null>}
  */
 export const getMatchById = async (matchId) => {
   try {
-    const docRef = doc(db, 'matches', matchId);
+    if (!matchId) {
+      throw new Error('Match ID is required');
+    }
+
+    console.log(`🔄 Fetching match: ${matchId}`);
+    
+    const docRef = doc(db, COLLECTIONS.MATCHES, matchId);
     const docSnap = await getDoc(docRef);
     
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...data,
-        date: data.date?.toDate ? data.date.toDate().toISOString() : data.date
-      };
+    if (!docSnap.exists()) {
+      console.warn(`⚠️ Match not found: ${matchId}`);
+      return null;
     }
     
-    console.log('❌ Match not found:', matchId);
-    return null;
+    const data = docSnap.data();
+    const match = {
+      id: docSnap.id,
+      ...data,
+      date: data.date?.toDate ? data.date.toDate().toISOString() : data.date
+    };
+    
+    console.log(`✅ Match found: ${match.homeTeam} vs ${match.awayTeam}`);
+    return match;
   } catch (error) {
-    console.error('❌ Error fetching match:', error);
-    throw error;
+    handleError(error, `Failed to fetch match ${matchId}`);
+  }
+};
+
+/**
+ * Get upcoming matches (future dates only)
+ * @returns {Promise<Array>}
+ */
+export const getUpcomingMatches = async () => {
+  try {
+    const now = Timestamp.now();
+    const q = query(
+      matchesRef,
+      where('date', '>=', now),
+      orderBy('date', 'asc')
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date?.toDate().toISOString()
+    }));
+  } catch (error) {
+    console.error('❌ Error fetching upcoming matches:', error);
+    return [];
+  }
+};
+
+/**
+ * Get available matches (status = 'available')
+ * @returns {Promise<Array>}
+ */
+export const getAvailableMatches = async () => {
+  try {
+    const q = query(
+      matchesRef,
+      where('status', '==', 'available'),
+      orderBy('date', 'asc')
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date?.toDate().toISOString()
+    }));
+  } catch (error) {
+    console.error('❌ Error fetching available matches:', error);
+    return [];
   }
 };
 
 // ============================================
-// TICKETS
+// TICKETS OPERATIONS
 // ============================================
 
 /**
  * Book a ticket
+ * @param {Object} ticketData 
+ * @returns {Promise<Object>}
  */
 export const bookTicket = async (ticketData) => {
   try {
+    console.log('🔄 Booking ticket...');
+    
+    // Get current user
+    const user = getCurrentUser();
+    if (!user) {
+      throw new Error('User must be authenticated to book tickets');
+    }
+    
+    // Validate ticket data
+    if (!validateTicketData(ticketData)) {
+      throw new Error('Invalid ticket data');
+    }
+    
+    // Create ticket object
     const ticket = {
       ...ticketData,
-      bookingDate: Timestamp.now(),
+      userId: user.uid,
+      userEmail: user.email,
+      userName: user.displayName || 'Wydad Fan',
+      bookingDate: serverTimestamp(),
       status: 'confirmed',
-      qrCode: generateQRCode()
+      qrCode: generateQRCode(),
+      createdAt: serverTimestamp()
     };
     
-    const docRef = await addDoc(ticketsCollection, ticket);
+    const docRef = await addDoc(ticketsRef, ticket);
     
-    console.log('✅ Ticket booked:', docRef.id);
+    console.log(`✅ Ticket booked successfully: ${docRef.id}`);
     
     return {
       id: docRef.id,
       ...ticket,
-      bookingDate: ticket.bookingDate.toDate().toISOString()
+      bookingDate: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
   } catch (error) {
-    console.error('❌ Error booking ticket:', error);
-    throw error;
+    handleError(error, 'Failed to book ticket');
   }
 };
 
 /**
  * Get user tickets
+ * @param {string} userId - Optional, uses current user if not provided
+ * @returns {Promise<Array>}
  */
-export const getUserTickets = async (userId) => {
+export const getUserTickets = async (userId = null) => {
   try {
+    const targetUserId = userId || getUserId();
+    
+    if (!targetUserId) {
+      console.warn('⚠️ No user authenticated');
+      return [];
+    }
+    
+    console.log(`🔄 Fetching tickets for user: ${targetUserId}`);
+    
     const q = query(
-      ticketsCollection,
-      where('userId', '==', userId),
+      ticketsRef,
+      where('userId', '==', targetUserId),
       orderBy('bookingDate', 'desc')
     );
     
@@ -125,31 +230,78 @@ export const getUserTickets = async (userId) => {
       };
     });
     
-    console.log('✅ User tickets récupérés:', tickets.length);
+    console.log(`✅ Fetched ${tickets.length} tickets`);
     return tickets;
   } catch (error) {
     console.error('❌ Error fetching user tickets:', error);
-    // Return empty array instead of throwing
     return [];
   }
 };
 
 /**
+ * Get ticket by ID
+ * @param {string} ticketId 
+ * @returns {Promise<Object|null>}
+ */
+export const getTicketById = async (ticketId) => {
+  try {
+    const docRef = doc(db, COLLECTIONS.TICKETS, ticketId);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      console.warn(`⚠️ Ticket not found: ${ticketId}`);
+      return null;
+    }
+    
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      ...data,
+      bookingDate: data.bookingDate?.toDate().toISOString()
+    };
+  } catch (error) {
+    handleError(error, `Failed to fetch ticket ${ticketId}`);
+  }
+};
+
+/**
  * Cancel ticket
+ * @param {string} ticketId 
+ * @returns {Promise<boolean>}
  */
 export const cancelTicket = async (ticketId) => {
   try {
-    const docRef = doc(db, 'tickets', ticketId);
+    console.log(`🔄 Cancelling ticket: ${ticketId}`);
+    
+    const docRef = doc(db, COLLECTIONS.TICKETS, ticketId);
     await updateDoc(docRef, {
       status: 'cancelled',
-      cancelledAt: Timestamp.now()
+      cancelledAt: serverTimestamp()
     });
     
-    console.log('✅ Ticket cancelled:', ticketId);
+    console.log(`✅ Ticket cancelled: ${ticketId}`);
     return true;
   } catch (error) {
-    console.error('❌ Error cancelling ticket:', error);
-    throw error;
+    handleError(error, `Failed to cancel ticket ${ticketId}`);
+  }
+};
+
+/**
+ * Delete ticket (admin only)
+ * @param {string} ticketId 
+ * @returns {Promise<boolean>}
+ */
+export const deleteTicket = async (ticketId) => {
+  try {
+    console.log(`🔄 Deleting ticket: ${ticketId}`);
+    
+    const docRef = doc(db, COLLECTIONS.TICKETS, ticketId);
+    await deleteDoc(docRef);
+    
+    console.log(`✅ Ticket deleted: ${ticketId}`);
+    return true;
+  } catch (error) {
+    handleError(error, `Failed to delete ticket ${ticketId}`);
   }
 };
 
@@ -159,22 +311,27 @@ export const cancelTicket = async (ticketId) => {
 
 /**
  * Generate unique QR code
+ * @returns {string}
  */
 const generateQRCode = () => {
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substr(2, 9).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 11).toUpperCase();
   return `WYD-${timestamp}-${random}`;
 };
 
 /**
  * Calculate ticket price based on category
+ * @param {string} category 
+ * @param {number} quantity 
+ * @returns {number}
  */
 export const calculateTicketPrice = (category, quantity = 1) => {
   const prices = {
     'Virage': 50,
     'Tribune': 100,
+    'Pelouse': 30,
     'VIP': 200,
-    'Pelouse': 30
+    'Tribune Premium': 150
   };
   
   const basePrice = prices[category] || 50;
@@ -183,6 +340,8 @@ export const calculateTicketPrice = (category, quantity = 1) => {
 
 /**
  * Format match date for display
+ * @param {string} dateString 
+ * @returns {string}
  */
 export const formatMatchDate = (dateString) => {
   try {
@@ -196,6 +355,68 @@ export const formatMatchDate = (dateString) => {
       minute: '2-digit'
     });
   } catch (error) {
+    console.error('❌ Error formatting date:', error);
     return dateString;
   }
+};
+
+/**
+ * Validate ticket data before booking
+ * @param {Object} ticketData 
+ * @returns {boolean}
+ */
+export const validateTicketData = (ticketData) => {
+  const required = ['matchId', 'category', 'quantity', 'totalPrice'];
+  
+  for (const field of required) {
+    if (!ticketData[field]) {
+      console.error(`❌ Missing required field: ${field}`);
+      return false;
+    }
+  }
+  
+  if (ticketData.quantity < 1 || ticketData.quantity > 10) {
+    console.error('❌ Invalid quantity (must be between 1 and 10)');
+    return false;
+  }
+  
+  if (ticketData.totalPrice <= 0) {
+    console.error('❌ Invalid price');
+    return false;
+  }
+  
+  return true;
+};
+
+/**
+ * Get ticket categories
+ * @returns {Array}
+ */
+export const getTicketCategories = () => {
+  return [
+    { id: 'Virage', name: 'Virage', price: 50 },
+    { id: 'Pelouse', name: 'Pelouse', price: 30 },
+    { id: 'Tribune', name: 'Tribune', price: 100 },
+    { id: 'Tribune Premium', name: 'Tribune Premium', price: 150 },
+    { id: 'VIP', name: 'VIP', price: 200 }
+  ];
+};
+
+// ============================================
+// EXPORTS
+// ============================================
+export default {
+  getMatches,
+  getMatchById,
+  getUpcomingMatches,
+  getAvailableMatches,
+  bookTicket,
+  getUserTickets,
+  getTicketById,
+  cancelTicket,
+  deleteTicket,
+  calculateTicketPrice,
+  formatMatchDate,
+  validateTicketData,
+  getTicketCategories
 };
